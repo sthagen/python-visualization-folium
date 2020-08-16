@@ -7,6 +7,7 @@ env:
 
 addons:
   firefox: latest
+  # chrome addon fails to install
 
 env:
   global:
@@ -21,6 +22,8 @@ matrix:
     env: PY=3.7
   - name: notebooks-code
     env: PY=3.7
+  - name: selenium
+    env: PY=3.7
   - name: latest-branca
     env: PY=3.7
   - name: docs
@@ -28,8 +31,6 @@ matrix:
   - name: "tarball"
     env: PY=3.7
   allow_failures:
-  - name: latest-branca
-    env: PY=3.7
   - name: linkcheck
     env: PY=3.7
   - name: notebooks-conding-standard
@@ -54,7 +55,18 @@ before_install:
     mkdir geckodriver
     tar -xzf geckodriver.tar.gz -C geckodriver
     export PATH=$PATH:$PWD/geckodriver
-
+  # Install Chrome
+  - |
+    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    sudo dpkg -i google-chrome-stable_current_amd64.deb
+    sudo apt-get install -y -f
+    # sudo dpkg -i google-chrome-stable_current_amd64.deb
+  # Install chromedriver
+  - |
+    wget https://chromedriver.storage.googleapis.com/$(curl https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip -O chromedriver.zip
+    mkdir chromedriver
+    unzip chromedriver.zip -d chromedriver
+    export PATH=$PATH:$PWD/chromedriver
 
 # Test source distribution.
 install:
@@ -72,13 +84,13 @@ script:
     fi
 
   - if [[ $TRAVIS_JOB_NAME == 'default' ]]; then
-      pytest /tmp -vv --ignore=tests/notebooks/test_notebooks.py ;
+      pytest /tmp -vv --ignore=/tmp/tests/selenium ;
     fi
 
   - if [[ $TRAVIS_JOB_NAME == 'latest-branca' ]]; then
       conda uninstall branca ;
       pip install git+https://github.com/python-visualization/branca.git ;
-      pytest /tmp -vv --ignore=tests/notebooks/test_notebooks.py ;
+      pytest /tmp -vv --ignore=/tmp/tests/selenium ;
     fi
 
   - if [[ $TRAVIS_JOB_NAME == 'notebooks-conding-standard' ]]; then
@@ -89,6 +101,10 @@ script:
 
   - if [[ $TRAVIS_JOB_NAME == 'notebooks-code' ]]; then
       pytest --nbval-lax /tmp/examples ;
+    fi
+
+  - if [[ $TRAVIS_JOB_NAME == 'selenium' ]]; then
+      pytest /tmp/tests/selenium -vv ;
     fi
 
 # Docs
@@ -126,4 +142,4 @@ deploy:
     repo: python-visualization/folium
     tags: true
     all_branches: master
-    condition: '$TRAVIS_JOB_NAME == "default"'
+    condition: '$TRAVIS_JOB_NAME == "tarball"'
