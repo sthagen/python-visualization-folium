@@ -4,6 +4,7 @@ import glob
 from html.parser import HTMLParser
 import os
 import subprocess
+from urllib.parse import unquote
 
 import nbconvert
 import pytest
@@ -40,16 +41,15 @@ def test_notebook(filepath, driver):
         driver.verify_js_logs()
 
 
-def get_notebook_html(filepath_notebook, execute=True):
+def get_notebook_html(filepath_notebook):
     """Store iframes from a notebook in html files, remove them when done."""
-    if execute:
-        subprocess.run([
-            'jupyter', 'nbconvert', '--to', 'notebook', '--execute', filepath_notebook,
-        ])
-        filepath_notebook = filepath_notebook.replace('.ipynb', '.nbconvert.ipynb')
+    # run the notebook to make sure the output is up-to-date
+    subprocess.run([
+        'jupyter', 'nbconvert', '--to', 'notebook', '--execute', filepath_notebook,
+    ])
+    filepath_notebook = filepath_notebook.replace('.ipynb', '.nbconvert.ipynb')
 
     html_exporter = nbconvert.HTMLExporter()
-    html_exporter.template_file = 'basic'
     body, _ = html_exporter.from_filename(filepath_notebook)
 
     parser = IframeParser()
@@ -72,9 +72,15 @@ class IframeParser(HTMLParser):
         if tag == 'iframe':
             attrs = dict(attrs)
             if 'data-html' in attrs:
-                html_base64 = attrs['data-html']
+                data_html = attrs['data-html']
+                if '%' in data_html[:20]:
+                    # newest branca version: data-html is percent-encoded
+                    html_bytes = unquote(data_html).encode()
+                else:
+                    # legacy branca version: data-html is base64 encoded
+                    html_bytes = base64.b64decode(data_html)
             else:  # legacy, can be removed when all notebooks have `data-html`.
                 src = attrs['src']
                 html_base64 = src.split(',')[-1]
-            html_bytes = base64.b64decode(html_base64)
+                html_bytes = base64.b64decode(html_base64)
             self.iframes.append(html_bytes)
