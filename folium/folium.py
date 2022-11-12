@@ -42,7 +42,7 @@ _default_css = [
     ('bootstrap_theme_css',
      'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css'),  # noqa
     ('awesome_markers_font_css',
-     'https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'),  # noqa
+     'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css'),  # noqa
     ('awesome_markers_css',
      'https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css'),  # noqa
     ('awesome_rotate_css',
@@ -81,7 +81,8 @@ class Map(JSCSSMixin, MacroElement):
         - "Mapbox" (Must pass API key)
         - "CartoDB" (positron and dark_matter)
 
-    You can pass a custom tileset to Folium by passing a Leaflet-style
+    You can pass a custom tileset to Folium by passing a
+    :class:`xyzservices.TileProvider` or a Leaflet-style
     URL to the tiles parameter: ``http://{s}.yourtiles.com/{z}/{x}/{y}.png``.
 
     You can find a list of free tile providers here:
@@ -97,9 +98,11 @@ class Map(JSCSSMixin, MacroElement):
         Width of the map.
     height: pixel int or percentage string (default: '100%')
         Height of the map.
-    tiles: str, default 'OpenStreetMap'
+    tiles: str or TileLayer or :class:`xyzservices.TileProvider`, default 'OpenStreetMap'
         Map tileset to use. Can choose from a list of built-in tiles,
-        pass a custom URL or pass `None` to create a map without tiles.
+        pass a :class:`xyzservices.TileProvider`,
+        pass a custom URL, pass a TileLayer object,
+        or pass `None` to create a map without tiles.
         For more advanced tile layer options, use the `TileLayer` class.
     min_zoom: int, default 0
         Minimum allowed zoom level for the tile layer that is created.
@@ -141,7 +144,7 @@ class Map(JSCSSMixin, MacroElement):
         Display zoom controls on the map.
     **kwargs
         Additional keyword arguments are passed to Leaflets Map class:
-        https://leafletjs.com/reference-1.6.0.html#map
+        https://leafletjs.com/reference.html#map
 
     Returns
     -------
@@ -282,7 +285,9 @@ class Map(JSCSSMixin, MacroElement):
 
         self.objects_to_stay_in_front = []
 
-        if tiles:
+        if isinstance(tiles, TileLayer):
+            self.add_child(tiles)
+        elif tiles:
             tile_layer = TileLayer(tiles=tiles, attr=attr,
                                    min_zoom=min_zoom, max_zoom=max_zoom)
             self.add_child(tile_layer, name=tile_layer.tile_name)
@@ -297,11 +302,13 @@ class Map(JSCSSMixin, MacroElement):
             out = self._parent._repr_html_(**kwargs)
         return out
 
-    def _to_png(self, delay=3):
+    def _to_png(self, delay=3, driver=None):
         """Export the HTML to byte representation of a PNG image.
 
         Uses selenium to render the HTML and record a PNG. You may need to
         adjust the `delay` time keyword argument if maps render without data or tiles.
+
+        Uses a headless Firefox webdriver by default, though you can provide your own.
 
         Examples
         --------
@@ -310,11 +317,12 @@ class Map(JSCSSMixin, MacroElement):
 
         """
         if self._png_image is None:
-            from selenium import webdriver
+            if driver is None:
+                from selenium import webdriver
 
-            options = webdriver.firefox.options.Options()
-            options.add_argument('--headless')
-            driver = webdriver.Firefox(options=options)
+                options = webdriver.firefox.options.Options()
+                options.add_argument('--headless')
+                driver = webdriver.Firefox(options=options)
 
             html = self.get_root().render()
             with temp_html_filepath(html) as fname:
