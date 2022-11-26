@@ -12,6 +12,7 @@ geographiclib
 geopandas
 gpxpy
 ipykernel
+jenkspy
 jupyter
 matplotlib
 nbconvert
@@ -20,6 +21,7 @@ nbval
 owslib
 pandas
 pillow
+pre-commit
 pycodestyle
 pytest
 pytest-cov
