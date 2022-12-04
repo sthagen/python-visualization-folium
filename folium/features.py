@@ -21,9 +21,11 @@ from folium.map import FeatureGroup, Icon, Layer, Marker, Popup, Tooltip
 from folium.utilities import (
     _parse_size,
     camelize,
+    escape_backticks,
     get_bounds,
     get_obj_in_upper_tree,
     image_to_url,
+    javascript_identifier_path_to_array_notation,
     none_max,
     none_min,
     parse_options,
@@ -901,7 +903,7 @@ class TopoJson(JSCSSMixin, Layer):
             var {{ this.get_name() }} = L.geoJson(
                 topojson.feature(
                     {{ this.get_name() }}_data,
-                    {{ this.get_name() }}_data.{{ this.object_path }}
+                    {{ this.get_name() }}_data{{ this._safe_object_path }}
                 ),
                 {
                 {%- if this.smooth_factor is not none %}
@@ -949,6 +951,9 @@ class TopoJson(JSCSSMixin, Layer):
             self.data = data
 
         self.object_path = object_path
+        self._safe_object_path = javascript_identifier_path_to_array_notation(
+            object_path
+        )
 
         if style_function is None:
 
@@ -1514,6 +1519,7 @@ class Choropleth(FeatureGroup):
             # then we 'correct' the last edge for numpy digitize
             # (we add a very small amount to fake an inclusive right interval)
             increasing = bin_edges[0] <= bin_edges[-1]
+            bin_edges = bin_edges.astype(float)
             bin_edges[-1] = np.nextafter(
                 bin_edges[-1], (1 if increasing else -1) * np.inf
             )
@@ -1694,9 +1700,16 @@ class ClickForMarker(MacroElement):
 
     Parameters
     ----------
-    popup: str, default None
+    popup: str or IFrame or Html, default None
         Text to display in the markers' popups.
+        This can also be an Element like IFrame or Html.
         If None, the popups will display the marker's latitude and longitude.
+        You can include the latitude and longitude with ${lat} and ${lng}.
+
+
+    Examples
+    --------
+    >>> ClickForMarker("<b>Lat:</b> ${lat}<br /><b>Lon:</b> ${lng}")
 
     """
 
@@ -1720,8 +1733,10 @@ class ClickForMarker(MacroElement):
         super().__init__()
         self._name = "ClickForMarker"
 
+        if isinstance(popup, Element):
+            popup = popup.render()
         if popup:
-            self.popup = "".join(['"', popup, '"'])
+            self.popup = "`" + escape_backticks(popup) + "`"
         else:
             self.popup = '"Latitude: " + lat + "<br>Longitude: " + lng '
 
