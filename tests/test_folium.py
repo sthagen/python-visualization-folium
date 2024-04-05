@@ -7,14 +7,12 @@ Folium Tests
 import json
 import os
 
-import branca.element
 import geopandas as gpd
-import jinja2
 import numpy as np
 import pandas as pd
 import pytest
 import xyzservices.providers as xyz
-from jinja2 import Environment, PackageLoader
+from jinja2 import Template
 from jinja2.utils import htmlsafe_json_dumps
 
 import folium
@@ -44,13 +42,6 @@ def setup_data():
     return merged.fillna(method="pad")
 
 
-def test_get_templates():
-    """Test template getting."""
-
-    env = branca.utilities.get_templates()
-    assert isinstance(env, jinja2.environment.Environment)
-
-
 def test_location_args():
     """Test some data types for a location arg."""
     location = np.array([45.5236, -122.6750])
@@ -78,7 +69,21 @@ class TestFolium:
             font_size="1.5rem",
             attr=attr,
         )
-        self.env = Environment(loader=PackageLoader("folium", "templates"))
+        self.fit_bounds_template = Template(
+            """
+            {% if autobounds %}
+            var autobounds = L.featureGroup({{ features }}).getBounds()
+            {% if not bounds %}
+            {% set bounds = "autobounds" %}
+            {% endif %}
+            {% endif %}
+            {% if bounds %}
+            {{this._parent.get_name()}}.fitBounds({{ bounds }},
+                {{ fit_bounds_options }}
+            );
+            {% endif %}
+        """
+        )
 
     def test_init(self):
         """Test map initialization."""
@@ -394,8 +399,7 @@ class TestFolium:
         ][0]
         out = self.m._parent.render()
 
-        fit_bounds_tpl = self.env.get_template("fit_bounds.js")
-        fit_bounds_rendered = fit_bounds_tpl.render(
+        fit_bounds_rendered = self.fit_bounds_template.render(
             {
                 "bounds": json.dumps(bounds),
                 "this": fitbounds,
@@ -415,8 +419,7 @@ class TestFolium:
         ][0]
         out = self.m._parent.render()
 
-        fit_bounds_tpl = self.env.get_template("fit_bounds.js")
-        fit_bounds_rendered = fit_bounds_tpl.render(
+        fit_bounds_rendered = self.fit_bounds_template.render(
             {
                 "bounds": json.dumps(bounds),
                 "fit_bounds_options": json.dumps(
