@@ -570,9 +570,9 @@ class GeoJson(Layer):
 
         {%- if this.marker %}
         function {{ this.get_name() }}_pointToLayer(feature, latlng) {
-            var opts = {{ this.marker.options | tojson | safe }};
+            var opts = {{ this.marker.options | tojavascript }};
             {% if this.marker._name == 'Marker' and this.marker.icon %}
-            const iconOptions = {{ this.marker.icon.options | tojson | safe }}
+            const iconOptions = {{ this.marker.icon.options | tojavascript }}
             const iconRootAlias = L{%- if this.marker.icon._name == "Icon" %}.AwesomeMarkers{%- endif %}
             opts.icon = new iconRootAlias.{{ this.marker.icon._name }}(iconOptions)
             {% endif %}
@@ -1718,7 +1718,6 @@ class DivIcon(MacroElement):
         """
         {% macro script(this, kwargs) %}
             var {{ this.get_name() }} = L.divIcon({{ this.options|tojavascript }});
-            {{this._parent.get_name()}}.setIcon({{this.get_name()}});
         {% endmacro %}
         """
     )  # noqa
@@ -1895,7 +1894,6 @@ class CustomIcon(Icon):
         """
         {% macro script(this, kwargs) %}
         var {{ this.get_name() }} = L.icon({{ this.options|tojavascript }});
-        {{ this._parent.get_name() }}.setIcon({{ this.get_name() }});
         {% endmacro %}
         """
     )  # noqa
