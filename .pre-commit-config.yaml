@@ -9,13 +9,15 @@ repos:
     - id: debug-statements
     - id: end-of-file-fixer
     - id: check-docstring-first
+      exclude: ^examples/streamlit
     - id: check-added-large-files
+      args: ['--maxkb=1024']
     - id: requirements-txt-fixer
     - id: file-contents-sorter
       files: requirements-dev.txt
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.4
+  rev: v0.11.8
   hooks:
     - id: ruff
 
