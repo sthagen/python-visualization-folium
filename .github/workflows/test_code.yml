@@ -45,15 +45,10 @@ jobs:
         pwd
         ls -la
 
-    - name: Debug step
-      run: |
-        pwd
-        echo '====='
-        ls .coverage*
-
     - name: Upload coverage
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-test-code-${{ matrix.os }}-${{ matrix.python_version }}
+        name: coverage-test-code-${{ matrix.os }}-${{ matrix.python-version }}
         path: .coverage*
+        include-hidden-files: true
